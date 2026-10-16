@@ -1,0 +1,36 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>動画の秒数⇔フレーム数計算|fps・タイムコード・コマ番号を相互変換</title><meta name="description" content="24fps・30fps・60fps などで、秒数からフレーム数、フレーム数から秒数、タイムコード(時:分:秒:コマ)を相互に計算します。AI 動画の尺合わせや、編集ソフトでコマを指定するときに。">
+<style>
+*{box-sizing:border-box}body{margin:0;font:16px/1.75 "Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",Meiryo,system-ui,sans-serif;background:#0f0e13;color:#ece9f2;word-break:auto-phrase;line-break:strict}
+main{max-width:860px;margin:0 auto;padding:32px 20px 64px}h1{font-size:28px;line-height:1.35;margin:0 0 10px}h2{font-size:20px;margin:36px 0 10px}
+p.lead{color:#b4aec2;margin:0 0 24px}.card{background:#18161f;border:1px solid #2a2635;border-radius:14px;padding:20px;margin:16px 0}
+label{display:block;font-size:13px;color:#b4aec2;margin:12px 0 6px}input,select,textarea{width:100%;background:#0f0e13;color:#ece9f2;border:1px solid #352f44;border-radius:10px;padding:10px 12px;font:inherit}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,#9890aa 50%),linear-gradient(135deg,#9890aa 50%,transparent 50%);background-position:calc(100% - 18px) 55%,calc(100% - 13px) 55%;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+button{background:#e0567a;color:#fff;border:0;border-radius:10px;padding:11px 18px;font:600 15px inherit;cursor:pointer;margin-top:14px}button.ghost{background:#2a2635}
+.out{white-space:pre-wrap;background:#0f0e13;border:1px solid #352f44;border-radius:10px;padding:14px;margin-top:14px;min-height:60px;font:14px/1.7 inherit}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid #2a2635}th{color:#b4aec2;font-weight:600}
+a{color:#f08aa5}.cta{display:inline-block;margin-top:8px;background:#e0567a;color:#fff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:600}
+.muted{color:#9890aa;font-size:14px}canvas,img,video{max-width:100%;border-radius:10px}footer{margin-top:48px;color:#9890aa;font-size:13px}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#352f44;border-radius:10px}::-webkit-scrollbar-track{background:#0f0e13}
+</style></head><body><main>
+<h1>動画の秒数⇔フレーム数計算</h1>
+<p class="lead">「5 秒の動画は何コマ?」「この 87 フレーム目は何秒?」を fps ごとに計算します。編集ソフトのタイムコード(時:分:秒:コマ)とも相互に変換できます。</p>
+<div class="card"><div class="row"><div><label>fps(1 秒あたりのコマ数)</label><select id="fps"><option>23.976</option><option selected>24</option><option>25</option><option>29.97</option><option>30</option><option>50</option><option>60</option></select></div>
+<div><label>秒数</label><input id="sec" type="number" step="0.001" value="5"></div>
+<div><label>フレーム数</label><input id="fr" type="number" step="1" value="120"></div>
+<div><label>タイムコード</label><input id="tc" value="00:00:05:00"></div></div>
+<p class="muted">どれか 1 つを書き換えると、残りが計算し直されます。29.97 / 23.976 はノンドロップの数え方で表示します。</p>
+<table id="t" style="margin-top:12px"></table></div>
+<h2>AI 動画の尺合わせで使う場面</h2>
+<p>動画モデルは長さを「秒」で受け取りますが、編集ソフトや音楽のビートは「コマ」で合わせます。たとえば 120BPM の曲は 1 拍 0.5 秒、24fps なら 12 コマごとにカットを置けば拍に乗ります。生成した複数のクリップをつなぐとき、つなぎ目の 1〜2 コマを削るだけで動きの引っかかりが消えることもよくあります。</p>
+<p>フレームを細かく見たいときは fps の高い素材のほうが扱いやすく、24fps は映画らしい動きのぶれが出ます。数秒のクリップを日本語のプロンプトから作るなら、<a href="https://emaki.ai/seedance-2?utm_source=onrender.com&utm_medium=tool">シーダンス 2</a>(Seedance 2.0)が使えます。</p>
+<div class="card"><strong>数秒のクリップを、日本語のプロンプトから。</strong><br><a class="cta" href="https://emaki.ai/seedance-2?utm_source=onrender.com&utm_medium=tool">シーダンス 2 で動画を作る</a></div>
+<footer>このページは <a href="https://emaki.ai/?utm_source=onrender.com&utm_medium=tool">emaki</a>(シーダンス 2.5 / 2.0 を日本語のまま使える AI 動画生成サイト)の無料ツールです。処理はすべてブラウザの中で行われ、ファイルはどこにも送信されません。</footer>
+</main><script>const $=id=>document.getElementById(id);const fps=()=>+$('fps').value,nom=()=>Math.round(fps());
+const pad=n=>String(n).padStart(2,'0');function toTC(f){const n=nom();f=Math.max(0,Math.round(f));const fr=f%n,s=Math.floor(f/n);return `${pad(Math.floor(s/3600))}:${pad(Math.floor(s/60)%60)}:${pad(s%60)}:${pad(fr)}`}
+function fromTC(t){const p=t.split(/[:;.]/).map(Number);if(p.length!==4||p.some(isNaN))return null;return ((p[0]*3600+p[1]*60+p[2])*nom()+p[3])}
+function set(from){let f;if(from==='sec')f=Math.round(+$('sec').value*fps());else if(from==='fr')f=Math.round(+$('fr').value);else{f=fromTC($('tc').value);if(f==null)return}
+if(from!=='sec')$('sec').value=(f/fps()).toFixed(3);if(from!=='fr')$('fr').value=f;if(from!=='tc')$('tc').value=toTC(f);table(+$('sec').value)}
+function table(s){let h='<tr><th>fps</th><th>'+s+' 秒のコマ数</th><th>1 コマの長さ</th></tr>';for(const r of [23.976,24,25,29.97,30,50,60])h+=`<tr><td>${r}</td><td>${Math.round(s*r)}</td><td>${(1000/r).toFixed(2)} ms</td></tr>`;$('t').innerHTML=h}
+$('sec').oninput=()=>set('sec');$('fr').oninput=()=>set('fr');$('tc').oninput=()=>set('tc');$('fps').oninput=()=>set('sec');set('sec');</script></body></html>
